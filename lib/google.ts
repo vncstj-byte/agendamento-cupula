@@ -103,6 +103,14 @@ export async function criarEvento(
       start: { dateTime: params.inicioISO, timeZone: params.timezone },
       end: { dateTime: params.fimISO, timeZone: params.timezone },
       attendees,
+      // Marca o evento para conseguirmos localizar o onboarding do mentorado
+      // depois (ex.: para reagendar).
+      extendedProperties: {
+        private: {
+          cupulaOnboarding: "1",
+          cupulaMentee: params.menteeEmail.toLowerCase(),
+        },
+      },
       conferenceData: {
         createRequest: {
           requestId,
@@ -133,6 +141,52 @@ export async function criarEvento(
     inicioISO: params.inicioISO,
     fimISO: params.fimISO,
   };
+}
+
+export interface OnboardingExistente {
+  id: string;
+  inicioISO: string;
+  meetLink?: string;
+}
+
+/**
+ * Procura o onboarding FUTURO do mentorado (pelo e-mail) na agenda.
+ * Usado para evitar dois agendamentos e para permitir reagendar.
+ */
+export async function buscarOnboardingDoMentee(
+  email: string,
+  aPartirDeISO: string
+): Promise<OnboardingExistente | null> {
+  const calendar = calendarClient();
+  const res = await calendar.events.list({
+    calendarId: env.calendarId(),
+    privateExtendedProperty: [
+      "cupulaOnboarding=1",
+      `cupulaMentee=${email.toLowerCase()}`,
+    ],
+    timeMin: aPartirDeISO,
+    singleEvents: true,
+    orderBy: "startTime",
+    maxResults: 1,
+  });
+  const ev = res.data.items?.[0];
+  if (!ev?.id || !ev.start?.dateTime) return null;
+  const meetLink =
+    ev.hangoutLink ||
+    ev.conferenceData?.entryPoints?.find((e) => e.entryPointType === "video")
+      ?.uri ||
+    undefined;
+  return { id: ev.id, inicioISO: ev.start.dateTime, meetLink };
+}
+
+/** Cancela (apaga) um evento e avisa os participantes. */
+export async function cancelarEvento(eventId: string): Promise<void> {
+  const calendar = calendarClient();
+  await calendar.events.delete({
+    calendarId: env.calendarId(),
+    eventId,
+    sendUpdates: "all",
+  });
 }
 
 // ------------------------------------------------------------

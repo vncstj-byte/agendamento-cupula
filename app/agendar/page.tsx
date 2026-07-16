@@ -20,6 +20,12 @@ interface Confirmacao {
   dataLegivel: string;
 }
 
+interface Agendamento {
+  id: string;
+  meetLink?: string;
+  dataLegivel: string;
+}
+
 export default function AgendarPage() {
   const { data: session, status } = useSession();
 
@@ -34,6 +40,9 @@ export default function AgendarPage() {
   const [erro, setErro] = useState<string | null>(null);
   const [confirmacao, setConfirmacao] = useState<Confirmacao | null>(null);
   const [sessionMinutes, setSessionMinutes] = useState(30);
+  const [jaAgendado, setJaAgendado] = useState<Agendamento | null>(null);
+  const [carregandoAgendamento, setCarregandoAgendamento] = useState(true);
+  const [reagendarMode, setReagendarMode] = useState(false);
 
   // Carrega os próximos dias com vaga a partir das configurações atuais.
   useEffect(() => {
@@ -48,6 +57,26 @@ export default function AgendarPage() {
       .catch(() => setDias([]))
       .finally(() => setCarregandoDias(false));
   }, [session?.user]);
+
+  // Verifica se o mentorado já tem um onboarding marcado.
+  useEffect(() => {
+    if (!session?.user) return;
+    setCarregandoAgendamento(true);
+    fetch("/api/meu-agendamento")
+      .then((r) => r.json())
+      .then((data) => setJaAgendado(data.agendamento || null))
+      .catch(() => setJaAgendado(null))
+      .finally(() => setCarregandoAgendamento(false));
+  }, [session?.user]);
+
+  function irReagendar() {
+    setReagendarMode(true);
+    setConfirmacao(null);
+    setDiaSel(null);
+    setSlotSel(null);
+    setObservacao("");
+    setErro(null);
+  }
 
   useEffect(() => {
     if (!diaSel) return;
@@ -73,13 +102,20 @@ export default function AgendarPage() {
       const res = await fetch("/api/book", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ start: slotSel.inicioISO, observacao }),
+        body: JSON.stringify({
+          start: slotSel.inicioISO,
+          observacao,
+          reagendar: reagendarMode,
+        }),
       });
       const data = await res.json();
       if (!res.ok) {
         setErro(data.error || "Não foi possível concluir o agendamento.");
         // Se o horário sumiu, recarrega a lista do dia.
-        if (res.status === 409 && diaSel) {
+        if (res.status === 409 && data.jaAgendado) {
+          // Já existe um onboarding — muda para o modo reagendar.
+          setReagendarMode(true);
+        } else if (res.status === 409 && diaSel) {
           setSlotSel(null);
           fetch(`/api/slots?date=${diaSel.dataISO}`)
             .then((r) => r.json())
@@ -91,6 +127,12 @@ export default function AgendarPage() {
           htmlLink: data.evento.htmlLink,
           dataLegivel: data.evento.dataLegivel,
         });
+        setJaAgendado({
+          id: data.evento.id,
+          meetLink: data.evento.meetLink,
+          dataLegivel: data.evento.dataLegivel,
+        });
+        setReagendarMode(false);
       }
     } catch {
       setErro("Não foi possível concluir o agendamento.");
@@ -149,6 +191,10 @@ export default function AgendarPage() {
               <span>{confirmacao.dataLegivel}</span>
             </div>
             <div className="line">
+              <span>Duração</span>
+              <span>{sessionMinutes} minutos de reunião</span>
+            </div>
+            <div className="line">
               <span>Onde</span>
               <span>Google Meet (vídeo)</span>
             </div>
@@ -163,16 +209,61 @@ export default function AgendarPage() {
           </p>
         </div>
         <div className="center">
-          <button
-            className="btn-ghost"
-            onClick={() => {
-              setConfirmacao(null);
-              setDiaSel(null);
-              setSlotSel(null);
-              setObservacao("");
-            }}
-          >
-            Fazer outro agendamento
+          <button className="btn-ghost" onClick={irReagendar}>
+            Reagendar
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  // Já tem onboarding e não está reagendando → oferecer reagendar
+  if (carregandoAgendamento && !reagendarMode) {
+    return (
+      <main className="wrap">
+        <Brand />
+        <div className="card">
+          <p className="loading">Carregando…</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (jaAgendado && !reagendarMode) {
+    return (
+      <main className="wrap">
+        <Brand />
+        <UserChip session={session} />
+        <div className="card">
+          <div className="step-label">Seu onboarding</div>
+          <h2>Você já tem um onboarding marcado 🎉</h2>
+          <div className="confirm-box" style={{ marginTop: 16 }}>
+            <div className="line">
+              <span>Quando</span>
+              <span>{jaAgendado.dataLegivel}</span>
+            </div>
+            <div className="line">
+              <span>Duração</span>
+              <span>{sessionMinutes} minutos de reunião</span>
+            </div>
+            <div className="line">
+              <span>Onde</span>
+              <span>Google Meet (vídeo)</span>
+            </div>
+          </div>
+          {jaAgendado.meetLink && (
+            <a className="big-meet" href={jaAgendado.meetLink} target="_blank">
+              Entrar no Google Meet
+            </a>
+          )}
+          <p className="muted center" style={{ marginTop: 14 }}>
+            Precisa de outro horário? É só reagendar — o horário atual é
+            cancelado automaticamente.
+          </p>
+        </div>
+        <div className="center">
+          <button className="btn-ghost" onClick={irReagendar}>
+            Reagendar
           </button>
         </div>
       </main>
@@ -189,8 +280,15 @@ export default function AgendarPage() {
           <button className="back" onClick={() => setSlotSel(null)}>
             ← Voltar aos horários
           </button>
-          <div className="step-label">Confirmar</div>
+          <div className="step-label">
+            {reagendarMode ? "Reagendar" : "Confirmar"}
+          </div>
           <h2>Revise e confirme</h2>
+          {reagendarMode && (
+            <p className="hint">
+              Ao confirmar, seu horário anterior é cancelado automaticamente.
+            </p>
+          )}
           <div className="confirm-box" style={{ marginTop: 16 }}>
             <div className="line">
               <span>Dia</span>
@@ -224,7 +322,11 @@ export default function AgendarPage() {
               disabled={enviando}
               onClick={confirmar}
             >
-              {enviando ? "Confirmando…" : "Confirmar agendamento"}
+              {enviando
+                ? "Confirmando…"
+                : reagendarMode
+                ? "Confirmar reagendamento"
+                : "Confirmar agendamento"}
             </button>
           </div>
         </div>
@@ -279,7 +381,14 @@ export default function AgendarPage() {
       <Brand />
       <UserChip session={session} />
       <div className="card">
-        <div className="step-label">Passo 1 de 2</div>
+        {reagendarMode && jaAgendado && (
+          <button className="back" onClick={() => setReagendarMode(false)}>
+            ← Cancelar reagendamento
+          </button>
+        )}
+        <div className="step-label">
+          {reagendarMode ? "Reagendar · Passo 1 de 2" : "Passo 1 de 2"}
+        </div>
         <h2>Escolha o dia</h2>
         <p className="hint">Estes são os próximos dias com atendimento.</p>
         {carregandoDias ? (
