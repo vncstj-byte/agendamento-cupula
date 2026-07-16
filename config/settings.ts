@@ -29,14 +29,14 @@ export interface Settings {
   minNoticeHours: number;
 
   /**
-   * Prazo MÁXIMO, em horas, para o onboarding acontecer.
-   * Ex.: 48 = só mostra horários dentro das próximas 48 horas.
-   * Use 0 para não ter limite máximo.
+   * Quantos dias COM horário livre mostrar ao mentorado.
+   * Ex.: 2 = mostra sempre os 2 próximos dias que tenham vaga
+   * (se um dia lotar/passar, puxa o próximo automaticamente).
    * (Regra interna — não é exibida ao mentorado.)
    */
-  maxNoticeHours: number;
+  diasComVaga: number;
 
-  /** Até quantos dias à frente o mentorado pode marcar. */
+  /** Até quantos dias à frente o sistema pode procurar vagas. */
   horizonDays: number;
 
   /**
@@ -59,7 +59,7 @@ export const defaultSettings: Settings = {
   sessionMinutes: 30,
   bufferMinutes: 0,
   minNoticeHours: 3,
-  maxNoticeHours: 48,
+  diasComVaga: 2,
   horizonDays: 30,
 
   janelas: {
