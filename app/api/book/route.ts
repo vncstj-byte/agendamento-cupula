@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { DateTime } from "luxon";
 import { auth } from "@/lib/auth";
 import { env } from "@/lib/env";
-import { PROGRAMA } from "@/config/settings";
 import { getSettings } from "@/lib/settingsStore";
 import { slotAindaDisponivel } from "@/lib/availability";
 import {
@@ -36,7 +35,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let body: { start?: string; observacao?: string; reagendar?: boolean };
+  let body: {
+    start?: string;
+    observacao?: string;
+    reagendar?: boolean;
+    temSocio?: boolean;
+    socioNome?: string;
+    socioEmail?: string;
+  };
   try {
     body = await req.json();
   } catch {
@@ -49,6 +55,21 @@ export async function POST(req: NextRequest) {
       { error: "Horário (start) é obrigatório." },
       { status: 400 }
     );
+  }
+
+  // Dados do sócio (opcional).
+  const socioNome = body.temSocio ? (body.socioNome || "").trim() : "";
+  const socioEmail = body.temSocio
+    ? (body.socioEmail || "").trim().toLowerCase()
+    : "";
+  if (body.temSocio) {
+    const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(socioEmail);
+    if (!socioNome || !emailValido) {
+      return NextResponse.json(
+        { error: "Informe o nome e um e-mail válido do sócio." },
+        { status: 400 }
+      );
+    }
   }
 
   try {
@@ -87,11 +108,18 @@ export async function POST(req: NextRequest) {
 
     const observacao = (body.observacao || "").trim();
     const descricao = [
-      `Onboarding do programa ${PROGRAMA}.`,
+      `Onboarding da Cúpula - Programa de Mentoria para Advogados.`,
       ``,
       `Mentorado: ${nome} (${email})`,
+      socioNome ? `Sócio: ${socioNome} (${socioEmail})` : "",
       observacao ? `\nObservação do mentorado:\n${observacao}` : "",
-    ].join("\n");
+    ]
+      .filter((linha, i) => linha !== "" || i === 1)
+      .join("\n");
+
+    const titulo = socioNome
+      ? `${nome} e ${socioNome} | Onboarding Cúpula`
+      : `${nome} | Onboarding Cúpula`;
 
     const evento = await criarEvento({
       inicioISO: slot.inicioISO,
@@ -100,7 +128,9 @@ export async function POST(req: NextRequest) {
       menteeNome: nome,
       menteeEmail: email,
       cupulaEmail: env.cupulaEmail(),
-      titulo: `${nome} | Onboarding Cúpula`,
+      socioNome: socioNome || undefined,
+      socioEmail: socioEmail || undefined,
+      titulo,
       descricao,
     });
 

@@ -36,6 +36,9 @@ export default function AgendarPage() {
   const [slotSel, setSlotSel] = useState<Slot | null>(null);
   const [carregandoSlots, setCarregandoSlots] = useState(false);
   const [observacao, setObservacao] = useState("");
+  const [temSocio, setTemSocio] = useState(false);
+  const [socioNome, setSocioNome] = useState("");
+  const [socioEmail, setSocioEmail] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [confirmacao, setConfirmacao] = useState<Confirmacao | null>(null);
@@ -75,6 +78,9 @@ export default function AgendarPage() {
     setDiaSel(null);
     setSlotSel(null);
     setObservacao("");
+    setTemSocio(false);
+    setSocioNome("");
+    setSocioEmail("");
     setErro(null);
   }
 
@@ -96,6 +102,14 @@ export default function AgendarPage() {
 
   async function confirmar() {
     if (!slotSel) return;
+
+    // Validação do sócio (quando marcado).
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(socioEmail.trim());
+    if (temSocio && (!socioNome.trim() || !emailOk)) {
+      setErro("Informe o nome e um e-mail válido do sócio.");
+      return;
+    }
+
     setEnviando(true);
     setErro(null);
     try {
@@ -106,6 +120,9 @@ export default function AgendarPage() {
           start: slotSel.inicioISO,
           observacao,
           reagendar: reagendarMode,
+          temSocio,
+          socioNome: socioNome.trim(),
+          socioEmail: socioEmail.trim(),
         }),
       });
       const data = await res.json();
@@ -305,6 +322,55 @@ export default function AgendarPage() {
               <span>{sessionMinutes} minutos</span>
             </div>
           </div>
+          <label className="field">Você tem uma cadeira de sócio?</label>
+          <div className="row" style={{ marginBottom: 16 }}>
+            <button
+              type="button"
+              className={temSocio ? "pill selected" : "pill"}
+              style={{ flex: 1, textAlign: "center" }}
+              onClick={() => setTemSocio(true)}
+            >
+              Sim
+            </button>
+            <button
+              type="button"
+              className={!temSocio ? "pill selected" : "pill"}
+              style={{ flex: 1, textAlign: "center" }}
+              onClick={() => {
+                setTemSocio(false);
+                setSocioNome("");
+                setSocioEmail("");
+              }}
+            >
+              Não
+            </button>
+          </div>
+
+          {temSocio && (
+            <div style={{ marginBottom: 16 }}>
+              <label className="field" htmlFor="socioNome">
+                Nome do sócio
+              </label>
+              <input
+                id="socioNome"
+                value={socioNome}
+                onChange={(e) => setSocioNome(e.target.value)}
+                placeholder="Nome completo do sócio"
+                style={{ marginBottom: 10 }}
+              />
+              <label className="field" htmlFor="socioEmail">
+                E-mail do sócio (vai receber o convite)
+              </label>
+              <input
+                id="socioEmail"
+                type="email"
+                value={socioEmail}
+                onChange={(e) => setSocioEmail(e.target.value)}
+                placeholder="email@exemplo.com"
+              />
+            </div>
+          )}
+
           <label className="field" htmlFor="obs">
             Quer deixar algum recado para a concierge? (opcional)
           </label>
