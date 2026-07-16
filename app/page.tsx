@@ -4,9 +4,9 @@ export default function Home() {
   return (
     <main className="wrap">
       <div className="brand">
-        <div className="eyebrow">Programa de Mentoria</div>
-        <h1>A Cúpula</h1>
-        <p>Agende sua sessão de mentoria com a concierge.</p>
+        <div className="eyebrow">Programa de mentoria para advogados</div>
+        <h1>Cúpula</h1>
+        <p>Agende seu onboarding com nossa concierge.</p>
       </div>
 
       <div className="card">
@@ -23,13 +23,13 @@ export default function Home() {
         </ol>
         <div style={{ marginTop: 24 }}>
           <Link href="/agendar" className="btn btn-primary">
-            Agendar minha mentoria
+            Agendar meu onboarding
           </Link>
         </div>
       </div>
 
       <p className="center muted">
-        Programa A Cúpula · atendimento realizado por vídeo (Google Meet)
+        Programa Cúpula · atendimento realizado por vídeo (Google Meet)
       </p>
       <p className="center muted" style={{ marginTop: 8 }}>
         <Link href="/painel" style={{ color: "var(--text-dim)" }}>
