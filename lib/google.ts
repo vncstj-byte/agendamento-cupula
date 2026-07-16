@@ -59,6 +59,8 @@ export interface CriarEventoParams {
   menteeNome: string;
   menteeEmail: string;
   cupulaEmail?: string;
+  socioNome?: string;
+  socioEmail?: string;
   titulo: string;
   descricao: string;
 }
@@ -83,6 +85,12 @@ export async function criarEvento(
   const attendees: calendar_v3.Schema$EventAttendee[] = [
     { email: params.menteeEmail, displayName: params.menteeNome },
   ];
+  if (params.socioEmail) {
+    attendees.push({
+      email: params.socioEmail,
+      displayName: params.socioNome,
+    });
+  }
   if (params.cupulaEmail) {
     attendees.push({ email: params.cupulaEmail });
   }
