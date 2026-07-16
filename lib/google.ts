@@ -41,6 +41,9 @@ async function criarSalaMeetComGravacao(): Promise<{
       },
       body: JSON.stringify({
         config: {
+          // Entrada livre: qualquer pessoa com o link entra direto,
+          // sem precisar ser aceita por um organizador (sem sala de espera).
+          accessType: "OPEN",
           artifactConfig: {
             recordingConfig: { autoRecordingGeneration: "ON" },
           },
