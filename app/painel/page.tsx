@@ -263,6 +263,18 @@ export default function PainelPage() {
             />
           </div>
           <div>
+            <label className="field">Prazo máximo p/ agendar (horas)</label>
+            <input
+              type="number"
+              min={0}
+              max={8760}
+              value={settings.maxNoticeHours}
+              onChange={(e) =>
+                atualizarCampo("maxNoticeHours", Number(e.target.value))
+              }
+            />
+          </div>
+          <div>
             <label className="field">Mostrar até (dias à frente)</label>
             <input
               type="number"

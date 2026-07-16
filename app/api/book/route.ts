@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
 
     const observacao = (body.observacao || "").trim();
     const descricao = [
-      `Sessão de mentoria do programa ${PROGRAMA}.`,
+      `Onboarding do programa ${PROGRAMA}.`,
       ``,
       `Mentorado: ${nome} (${email})`,
       observacao ? `\nObservação do mentorado:\n${observacao}` : "",
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
       menteeNome: nome,
       menteeEmail: email,
       cupulaEmail: env.cupulaEmail(),
-      titulo: `Mentoria ${PROGRAMA} — ${nome}`,
+      titulo: `${nome} | Onboarding Cúpula`,
       descricao,
     });
 

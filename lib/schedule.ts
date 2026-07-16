@@ -68,11 +68,20 @@ export function colideComOcupado(slot: Slot, ocupados: BusyPeriod[]): boolean {
  * Função pura (não consulta a agenda).
  */
 export function diasComAtendimento(s: Settings): DiaAtendimento[] {
-  const hoje = DateTime.now().setZone(s.timezone).startOf("day");
+  const agora = DateTime.now().setZone(s.timezone);
+  const hoje = agora.startOf("day");
   const dias: DiaAtendimento[] = [];
+
+  // Se houver prazo máximo, não mostra dias além dele.
+  const limiteMax =
+    s.maxNoticeHours && s.maxNoticeHours > 0
+      ? agora.plus({ hours: s.maxNoticeHours })
+      : null;
 
   for (let i = 0; i <= s.horizonDays; i++) {
     const d = hoje.plus({ days: i });
+    if (limiteMax && d.startOf("day") > limiteMax) break;
+
     const weekday = d.weekday as DiaSemana;
     const janelas = s.janelas[weekday] ?? [];
     if (janelas.length > 0) {
