@@ -134,3 +134,67 @@ export async function criarEvento(
     fimISO: params.fimISO,
   };
 }
+
+// ------------------------------------------------------------
+//  Armazenamento das configurações do painel
+//
+//  As configurações editadas pela concierge ficam guardadas num
+//  evento OCULTO na própria agenda dela (data fixa no ano 2000,
+//  marcado como "livre" e privado). Assim não precisamos de banco
+//  de dados e a configuração persiste entre publicações.
+// ------------------------------------------------------------
+
+const CONFIG_TAG = "cupulaConfig";
+const CONFIG_DATE = "2000-01-01";
+
+/** Lê o JSON de configuração guardado na agenda (ou null se ainda não existe). */
+export async function lerConfigEvento(): Promise<string | null> {
+  const calendar = calendarClient();
+  const res = await calendar.events.list({
+    calendarId: env.calendarId(),
+    privateExtendedProperty: [`${CONFIG_TAG}=1`],
+    timeMin: "2000-01-01T00:00:00Z",
+    timeMax: "2000-01-03T00:00:00Z",
+    singleEvents: true,
+    maxResults: 1,
+  });
+  const evento = res.data.items?.[0];
+  return evento?.description ?? null;
+}
+
+/** Grava (cria ou atualiza) o JSON de configuração na agenda. */
+export async function gravarConfigEvento(json: string): Promise<void> {
+  const calendar = calendarClient();
+  const res = await calendar.events.list({
+    calendarId: env.calendarId(),
+    privateExtendedProperty: [`${CONFIG_TAG}=1`],
+    timeMin: "2000-01-01T00:00:00Z",
+    timeMax: "2000-01-03T00:00:00Z",
+    singleEvents: true,
+    maxResults: 1,
+  });
+  const existente = res.data.items?.[0];
+
+  const requestBody: calendar_v3.Schema$Event = {
+    summary: "⚙️ Configuração — A Cúpula (não apagar)",
+    description: json,
+    start: { date: CONFIG_DATE },
+    end: { date: "2000-01-02" },
+    transparency: "transparent",
+    visibility: "private",
+    extendedProperties: { private: { [CONFIG_TAG]: "1" } },
+  };
+
+  if (existente?.id) {
+    await calendar.events.patch({
+      calendarId: env.calendarId(),
+      eventId: existente.id,
+      requestBody,
+    });
+  } else {
+    await calendar.events.insert({
+      calendarId: env.calendarId(),
+      requestBody,
+    });
+  }
+}

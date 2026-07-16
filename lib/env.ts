@@ -48,4 +48,20 @@ export const env = {
       .split(",")
       .map((e) => e.trim().toLowerCase())
       .filter(Boolean),
+
+  /**
+   * E-mails que podem acessar o painel de configuração (a concierge).
+   * Separados por vírgula. Se vazio, o painel fica indisponível.
+   */
+  adminEmails: () =>
+    (optional("ADMIN_EMAILS") || "")
+      .split(",")
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean),
 };
+
+/** Indica se o e-mail informado pode acessar o painel. */
+export function isAdmin(email: string | null | undefined): boolean {
+  if (!email) return false;
+  return env.adminEmails().includes(email.toLowerCase());
+}

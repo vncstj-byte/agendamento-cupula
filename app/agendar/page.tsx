@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
-import { diasComAtendimento } from "@/lib/dias";
 
 interface Slot {
   inicioISO: string;
@@ -21,13 +20,11 @@ interface Confirmacao {
   dataLegivel: string;
 }
 
-// A lista de dias é calculada só a partir da configuração (sem chamar a agenda),
-// então pode ser gerada no cliente com segurança.
-const DIAS: Dia[] = diasComAtendimento();
-
 export default function AgendarPage() {
   const { data: session, status } = useSession();
 
+  const [dias, setDias] = useState<Dia[]>([]);
+  const [carregandoDias, setCarregandoDias] = useState(true);
   const [diaSel, setDiaSel] = useState<Dia | null>(null);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [slotSel, setSlotSel] = useState<Slot | null>(null);
@@ -36,6 +33,17 @@ export default function AgendarPage() {
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [confirmacao, setConfirmacao] = useState<Confirmacao | null>(null);
+
+  // Carrega os dias com atendimento a partir das configurações atuais.
+  useEffect(() => {
+    if (!session?.user) return;
+    setCarregandoDias(true);
+    fetch("/api/config")
+      .then((r) => r.json())
+      .then((data) => setDias(data.dias || []))
+      .catch(() => setDias([]))
+      .finally(() => setCarregandoDias(false));
+  }, [session?.user]);
 
   useEffect(() => {
     if (!diaSel) return;
@@ -270,13 +278,15 @@ export default function AgendarPage() {
         <div className="step-label">Passo 1 de 2</div>
         <h2>Escolha o dia</h2>
         <p className="hint">Estes são os próximos dias com atendimento.</p>
-        {DIAS.length === 0 ? (
+        {carregandoDias ? (
+          <p className="loading">Carregando dias…</p>
+        ) : dias.length === 0 ? (
           <p className="muted">
             Nenhum dia de atendimento configurado no momento.
           </p>
         ) : (
           <div className="grid grid-days">
-            {DIAS.map((d) => (
+            {dias.map((d) => (
               <button
                 key={d.dataISO}
                 className="pill"

@@ -31,6 +31,11 @@ export default function Home() {
       <p className="center muted">
         Programa A Cúpula · atendimento realizado por vídeo (Google Meet)
       </p>
+      <p className="center muted" style={{ marginTop: 8 }}>
+        <Link href="/painel" style={{ color: "var(--text-dim)" }}>
+          Área da concierge
+        </Link>
+      </p>
     </main>
   );
 }

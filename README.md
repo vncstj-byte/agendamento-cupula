@@ -7,7 +7,9 @@ sessão. O sistema:
 - mostra apenas os horários **dentro das janelas de atendimento** que você configurar;
 - **esconde horários já ocupados** no Google Agenda da concierge;
 - cria o evento **na agenda da concierge**, já com **link do Google Meet**;
-- **convida o mentorado** por e-mail (e, opcionalmente, o e-mail da Cúpula).
+- **convida o mentorado** por e-mail (e, opcionalmente, o e-mail da Cúpula);
+- tem um **painel** (`/painel`) onde a concierge ajusta os horários sozinha,
+  sem mexer em código.
 
 Não usa banco de dados — a própria Google Agenda é a fonte da verdade. Isso deixa o
 sistema simples de manter e publicar.
@@ -68,6 +70,7 @@ Se tiver qualquer dúvida em algum passo, me chama que a gente resolve junto.
    - `CONCIERGE_CALENDAR_ID` — o e-mail da concierge (ou `primary`).
    - `CUPULA_EMAIL` — (opcional) o e-mail da Cúpula, se quiser que a equipe também
      receba o convite.
+   - `ADMIN_EMAILS` — o e-mail da concierge (quem pode acessar o painel `/painel`).
 
 3. **Autorize a agenda da concierge** (gera o `CONCIERGE_REFRESH_TOKEN`):
 
@@ -84,27 +87,31 @@ Se tiver qualquer dúvida em algum passo, me chama que a gente resolve junto.
 
 ## Passo 3 — Configurar os horários de atendimento
 
-Abra o arquivo **`config/settings.ts`**. Lá você define, de forma simples:
+Você tem **duas formas** de configurar os horários:
 
-- o **fuso horário** (padrão: São Paulo);
-- a **duração** de cada sessão (padrão: 60 min);
-- a **antecedência mínima** para marcar (padrão: 24h);
-- até **quantos dias à frente** o mentorado pode marcar (padrão: 30);
-- as **janelas de atendimento** por dia da semana.
+### a) Pelo painel da concierge (recomendado)
 
-Exemplo (segunda a quinta de manhã e à tarde, sexta só de manhã):
+Depois de publicar, a concierge acessa **`/painel`**, entra com a conta Google (o
+e-mail precisa estar em `ADMIN_EMAILS`) e ajusta tudo por lá:
 
-```ts
-janelas: {
-  1: [["09:00", "12:00"], ["14:00", "17:00"]], // segunda
-  2: [["09:00", "12:00"], ["14:00", "17:00"]], // terça
-  3: [["09:00", "12:00"], ["14:00", "17:00"]], // quarta
-  4: [["09:00", "12:00"], ["14:00", "17:00"]], // quinta
-  5: [["09:00", "12:00"]],                       // sexta
-},
-```
+- as **janelas de atendimento** de cada dia (é só adicionar/remover faixas de horário);
+- a **duração** da sessão, a **folga** entre sessões, a **antecedência mínima** e até
+  quantos **dias à frente** o mentorado pode marcar.
 
-O arquivo tem comentários explicando cada campo.
+As mudanças ficam guardadas na **própria agenda da concierge** (num evento oculto que
+não aparece no dia a dia), então valem na hora, sem precisar republicar.
+
+> O horário de almoço é simplesmente o **espaço entre uma janela e outra**. Ex.: manhã
+> `09:00–12:00` e tarde `14:00–18:00` = almoço das 12h às 14h.
+
+### b) Pelos padrões iniciais (arquivo)
+
+Os valores INICIAIS ficam em **`config/settings.ts`** (usados enquanto a concierge não
+mexe no painel). Já vêm com a agenda da Cúpula:
+
+- Segunda e sexta: **09:00–18:00** (almoço 12:00–14:00)
+- Terça a quinta: **10:30–17:30** (almoço 12:00–13:30)
+- Sessões de **30 minutos**
 
 ---
 
@@ -127,7 +134,8 @@ Meet.
    escolhendo este repositório.
 3. Em **Environment Variables**, adicione as mesmas do seu `.env`
    (`AUTH_GOOGLE_ID`, `AUTH_GOOGLE_SECRET`, `AUTH_SECRET`, `CONCIERGE_REFRESH_TOKEN`,
-   `CONCIERGE_CALENDAR_ID`, `CUPULA_EMAIL` e, se usar, `MENTORADOS_AUTORIZADOS`).
+   `CONCIERGE_CALENDAR_ID`, `ADMIN_EMAILS`, `CUPULA_EMAIL` e, se usar,
+   `MENTORADOS_AUTORIZADOS`).
    Defina também `AUTH_URL` com a URL final do site (ex.: `https://cupula.vercel.app`).
 4. Clique em **Deploy**.
 5. Copie a URL final e volte ao **Google Cloud → Credenciais** para adicionar o
@@ -144,7 +152,11 @@ Pronto! É só compartilhar a URL com os mentorados.
 ## Perguntas frequentes
 
 **Como mudo os horários de atendimento depois?**
-Edite `config/settings.ts` e publique de novo (na Vercel, um novo commit já atualiza).
+O jeito mais fácil é pelo painel `/painel` (mudanças valem na hora). Se preferir mudar
+os padrões iniciais, edite `config/settings.ts` e publique de novo.
+
+**Quem pode entrar no painel da concierge?**
+Só os e-mails listados em `ADMIN_EMAILS`. Qualquer outro login recebe "sem permissão".
 
 **Quero limitar quem pode marcar.**
 Preencha `MENTORADOS_AUTORIZADOS` no `.env` com os e-mails separados por vírgula.
@@ -161,14 +173,18 @@ Não. O login com Google serve só para identificá-lo (nome e e-mail).
 ## Estrutura do projeto
 
 ```
-config/settings.ts     ← horários, duração, fuso (você edita aqui)
-lib/auth.ts            ← login do mentorado (Google)
-lib/google.ts          ← acesso à agenda da concierge (ler ocupados / criar evento)
-lib/availability.ts    ← cálculo dos horários livres
-lib/dias.ts            ← lista de dias com atendimento
-app/agendar/page.tsx   ← tela de agendamento
-app/api/slots          ← devolve os horários livres de um dia
+config/settings.ts     ← horários/duração PADRÃO (ponto de partida)
+lib/auth.ts            ← login do mentorado e da concierge (Google)
+lib/google.ts          ← acesso à agenda: ocupados, criar evento, guardar config
+lib/settingsStore.ts   ← lê/salva as configurações do painel (na agenda)
+lib/schedule.ts        ← geração de horários e dias (cálculo puro)
+lib/availability.ts    ← horários livres = janelas − ocupados − antecedência
+app/agendar/page.tsx   ← tela de agendamento do mentorado
+app/painel/page.tsx    ← painel da concierge (ajusta horários)
+app/api/config         ← dias com atendimento (para a tela de agendamento)
+app/api/slots          ← horários livres de um dia
 app/api/book           ← cria o agendamento
+app/api/settings       ← lê/salva configurações (só concierge)
 scripts/get-refresh-token.mjs ← autoriza a agenda da concierge (passo 2)
 ```
 

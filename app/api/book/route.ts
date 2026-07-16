@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { DateTime } from "luxon";
 import { auth } from "@/lib/auth";
 import { env } from "@/lib/env";
-import { settings, PROGRAMA } from "@/config/settings";
+import { PROGRAMA } from "@/config/settings";
+import { getSettings } from "@/lib/settingsStore";
 import { slotAindaDisponivel } from "@/lib/availability";
 import { criarEvento } from "@/lib/google";
 
@@ -59,6 +60,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const settings = await getSettings();
     const inicio = DateTime.fromISO(slot.inicioISO).setZone(settings.timezone);
     const dataLegivel = inicio
       .setLocale("pt-BR")
