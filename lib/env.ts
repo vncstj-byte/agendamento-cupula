@@ -28,10 +28,31 @@ export const env = {
   calendarRefreshToken: () => required("CONCIERGE_REFRESH_TOKEN"),
 
   /**
-   * ID da agenda onde os eventos são criados.
-   * Normalmente é o e-mail da concierge, ou "primary".
+   * ID da agenda da CONCIERGE — usada para LER os horários ocupados
+   * (disponibilidade). Normalmente o e-mail da concierge, ou "primary".
    */
   calendarId: () => process.env.CONCIERGE_CALENDAR_ID?.trim() || "primary",
+
+  /** E-mail da concierge (para convidá-la como participante). */
+  conciergeEmail: () => {
+    const e = optional("CONCIERGE_EMAIL");
+    if (e) return e;
+    const cal = process.env.CONCIERGE_CALENDAR_ID?.trim();
+    return cal && cal.includes("@") ? cal : undefined;
+  },
+
+  /**
+   * Conta CENTRAL onde os eventos são CRIADOS (organizadora — grava as
+   * reuniões). Se não configurada, usa a agenda da concierge como reserva,
+   * mantendo o comportamento anterior sem quebrar nada.
+   */
+  centralConfigured: () => Boolean(optional("CENTRAL_REFRESH_TOKEN")),
+  centralRefreshToken: () =>
+    optional("CENTRAL_REFRESH_TOKEN") || required("CONCIERGE_REFRESH_TOKEN"),
+  centralCalendarId: () =>
+    optional("CENTRAL_CALENDAR_ID") ||
+    process.env.CONCIERGE_CALENDAR_ID?.trim() ||
+    "primary",
 
   /**
    * (Opcional) E-mail da Cúpula. Se preenchido, é convidado como
