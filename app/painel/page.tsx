@@ -263,14 +263,14 @@ export default function PainelPage() {
             />
           </div>
           <div>
-            <label className="field">Prazo máximo p/ agendar (horas)</label>
+            <label className="field">Dias com vaga a mostrar</label>
             <input
               type="number"
-              min={0}
-              max={8760}
-              value={settings.maxNoticeHours}
+              min={1}
+              max={10}
+              value={settings.diasComVaga}
               onChange={(e) =>
-                atualizarCampo("maxNoticeHours", Number(e.target.value))
+                atualizarCampo("diasComVaga", Number(e.target.value))
               }
             />
           </div>

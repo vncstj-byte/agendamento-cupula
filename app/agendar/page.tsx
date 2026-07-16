@@ -33,14 +33,18 @@ export default function AgendarPage() {
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
   const [confirmacao, setConfirmacao] = useState<Confirmacao | null>(null);
+  const [sessionMinutes, setSessionMinutes] = useState(30);
 
-  // Carrega os dias com atendimento a partir das configurações atuais.
+  // Carrega os próximos dias com vaga a partir das configurações atuais.
   useEffect(() => {
     if (!session?.user) return;
     setCarregandoDias(true);
     fetch("/api/config")
       .then((r) => r.json())
-      .then((data) => setDias(data.dias || []))
+      .then((data) => {
+        setDias(data.dias || []);
+        if (data.sessionMinutes) setSessionMinutes(data.sessionMinutes);
+      })
       .catch(() => setDias([]))
       .finally(() => setCarregandoDias(false));
   }, [session?.user]);
@@ -200,7 +204,7 @@ export default function AgendarPage() {
             </div>
             <div className="line">
               <span>Duração</span>
-              <span>Sessão de mentoria</span>
+              <span>{sessionMinutes} minutos</span>
             </div>
           </div>
           <label className="field" htmlFor="obs">
@@ -311,8 +315,9 @@ function Brand() {
       <div className="eyebrow">Programa de mentoria para advogados</div>
       <h1>Cúpula</h1>
       <p>
-        É um prazer te ter na Cúpula. Agende seu onboarding com nossa
-        concierge!
+        É um prazer te receber na Cúpula!
+        <br />
+        Agende seu onboarding com nossa concierge:
       </p>
     </div>
   );

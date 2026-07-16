@@ -7,11 +7,6 @@ export interface Slot {
   label: string;
 }
 
-export interface DiaAtendimento {
-  dataISO: string;
-  label: string;
-}
-
 export interface BusyPeriod {
   start: string;
   end: string;
@@ -61,36 +56,4 @@ export function colideComOcupado(slot: Slot, ocupados: BusyPeriod[]): boolean {
     );
     return slotIntervalo.overlaps(ocupado);
   });
-}
-
-/**
- * Lista os dias com atendimento dentro do horizonte configurado.
- * Função pura (não consulta a agenda).
- */
-export function diasComAtendimento(s: Settings): DiaAtendimento[] {
-  const agora = DateTime.now().setZone(s.timezone);
-  const hoje = agora.startOf("day");
-  const dias: DiaAtendimento[] = [];
-
-  // Se houver prazo máximo, não mostra dias além dele.
-  const limiteMax =
-    s.maxNoticeHours && s.maxNoticeHours > 0
-      ? agora.plus({ hours: s.maxNoticeHours })
-      : null;
-
-  for (let i = 0; i <= s.horizonDays; i++) {
-    const d = hoje.plus({ days: i });
-    if (limiteMax && d.startOf("day") > limiteMax) break;
-
-    const weekday = d.weekday as DiaSemana;
-    const janelas = s.janelas[weekday] ?? [];
-    if (janelas.length > 0) {
-      dias.push({
-        dataISO: d.toISODate()!,
-        label: d.setLocale("pt-BR").toFormat("cccc, dd 'de' LLLL"),
-      });
-    }
-  }
-
-  return dias;
 }

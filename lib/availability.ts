@@ -1,14 +1,15 @@
 import { DateTime } from "luxon";
+import { DiaSemana } from "@/config/settings";
 import { getSettings } from "@/lib/settingsStore";
 import { getBusyPeriods } from "@/lib/google";
-import {
-  Slot,
-  slotsCandidatos,
-  colideComOcupado,
-  diasComAtendimento as diasPuro,
-} from "@/lib/schedule";
+import { Slot, slotsCandidatos, colideComOcupado } from "@/lib/schedule";
 
 export type { Slot } from "@/lib/schedule";
+
+export interface DiaComVaga {
+  dataISO: string;
+  label: string;
+}
 
 /**
  * Horários disponíveis de UM dia, já descontando:
@@ -24,17 +25,10 @@ export async function horariosDisponiveis(dataISO: string): Promise<Slot[]> {
 
   const agora = DateTime.now().setZone(tz);
   const limiteAntecedencia = agora.plus({ hours: s.minNoticeHours });
-  const limiteMaximo =
-    s.maxNoticeHours && s.maxNoticeHours > 0
-      ? agora.plus({ hours: s.maxNoticeHours })
-      : null;
 
-  const candidatos = slotsCandidatos(dia, s).filter((slot) => {
-    const inicio = DateTime.fromISO(slot.inicioISO);
-    if (inicio < limiteAntecedencia) return false;
-    if (limiteMaximo && inicio > limiteMaximo) return false;
-    return true;
-  });
+  const candidatos = slotsCandidatos(dia, s).filter(
+    (slot) => DateTime.fromISO(slot.inicioISO) >= limiteAntecedencia
+  );
   if (candidatos.length === 0) return [];
 
   const ocupados = await getBusyPeriods(
@@ -45,10 +39,47 @@ export async function horariosDisponiveis(dataISO: string): Promise<Slot[]> {
   return candidatos.filter((slot) => !colideComOcupado(slot, ocupados));
 }
 
-/** Lista os dias com atendimento, com base nas configurações efetivas. */
-export async function diasComAtendimento() {
+/**
+ * Retorna os próximos dias que REALMENTE têm horário livre, na
+ * quantidade configurada (settings.diasComVaga). Se um dia estiver
+ * lotado ou já tiver passado, ele é pulado e o próximo dia com vaga
+ * entra no lugar — assim a lista nunca mostra um dia vazio.
+ *
+ * Faz uma única consulta de ocupação para toda a janela de busca.
+ */
+export async function proximosDiasComVaga(): Promise<DiaComVaga[]> {
   const s = await getSettings();
-  return diasPuro(s);
+  const tz = s.timezone;
+  const agora = DateTime.now().setZone(tz);
+  const limiteAntecedencia = agora.plus({ hours: s.minNoticeHours });
+  const alvo = Math.max(1, s.diasComVaga);
+
+  const inicio = agora.startOf("day");
+  const fim = inicio.plus({ days: s.horizonDays }).endOf("day");
+  const ocupados = await getBusyPeriods(inicio.toISO()!, fim.toISO()!);
+
+  const dias: DiaComVaga[] = [];
+  for (let i = 0; i <= s.horizonDays; i++) {
+    const dia = inicio.plus({ days: i });
+    const weekday = dia.weekday as DiaSemana;
+    const janelas = s.janelas[weekday] ?? [];
+    if (janelas.length === 0) continue;
+
+    const temVaga = slotsCandidatos(dia, s).some((slot) => {
+      const ini = DateTime.fromISO(slot.inicioISO);
+      return ini >= limiteAntecedencia && !colideComOcupado(slot, ocupados);
+    });
+
+    if (temVaga) {
+      dias.push({
+        dataISO: dia.toISODate()!,
+        label: dia.setLocale("pt-BR").toFormat("cccc, dd 'de' LLLL"),
+      });
+      if (dias.length >= alvo) break;
+    }
+  }
+
+  return dias;
 }
 
 /** Confere, no momento da marcação, se um horário exato ainda está livre. */
