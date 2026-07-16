@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error:
-            "Você já tem um onboarding agendado. Use a opção Reagendar para trocar o horário.",
+            "Você já tem um onboarding agendado. Use a opção Remarcar para trocar o horário.",
           jaAgendado: true,
         },
         { status: 409 }
