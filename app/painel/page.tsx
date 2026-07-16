@@ -312,7 +312,7 @@ function Frame({ children }: { children: React.ReactNode }) {
     <main className="wrap">
       <div className="brand">
         <div className="eyebrow">Painel da concierge</div>
-        <h1>A Cúpula</h1>
+        <h1>Cúpula</h1>
         <p>Configuração da agenda</p>
       </div>
       {children}
