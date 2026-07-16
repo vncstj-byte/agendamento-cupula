@@ -61,6 +61,17 @@ export const env = {
   cupulaEmail: () => optional("CUPULA_EMAIL"),
 
   /**
+   * (Opcional) Se "true", tenta criar a reunião já com GRAVAÇÃO
+   * automática (via Google Meet API, com a conta central). Requer a
+   * Meet API ativada e um Workspace que suporte gravação. Se falhar,
+   * o evento é criado com um Meet normal (sem gravar) — não quebra.
+   */
+  gravarReunioes: () => {
+    const v = (optional("GRAVAR_REUNIOES") || "").toLowerCase();
+    return v === "true" || v === "1" || v === "sim";
+  },
+
+  /**
    * (Opcional) Lista de e-mails autorizados a marcar, separados por vírgula.
    * Se vazio, qualquer pessoa logada com Google pode marcar.
    */

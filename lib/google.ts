@@ -1,16 +1,72 @@
 import { google, calendar_v3 } from "googleapis";
 import { env } from "@/lib/env";
 
-/**
- * Cria um cliente do Google Calendar autenticado com um refresh token.
- */
-function clientFor(refreshToken: string): calendar_v3.Calendar {
+/** Cliente OAuth2 autenticado com um refresh token. */
+function oauth2For(refreshToken: string) {
   const client = new google.auth.OAuth2(
     env.googleClientId(),
     env.googleClientSecret()
   );
   client.setCredentials({ refresh_token: refreshToken });
-  return google.calendar({ version: "v3", auth: client });
+  return client;
+}
+
+/**
+ * Cria um cliente do Google Calendar autenticado com um refresh token.
+ */
+function clientFor(refreshToken: string): calendar_v3.Calendar {
+  return google.calendar({ version: "v3", auth: oauth2For(refreshToken) });
+}
+
+/**
+ * Cria uma "sala" do Google Meet com GRAVAÇÃO automática ligada, usando
+ * a conta central (via Meet API). Retorna o link e o código da sala,
+ * ou null se não for possível (aí o evento usa um Meet normal).
+ */
+async function criarSalaMeetComGravacao(): Promise<{
+  uri: string;
+  code: string;
+} | null> {
+  try {
+    const auth = oauth2For(env.centralRefreshToken());
+    const at = await auth.getAccessToken();
+    const token = typeof at === "string" ? at : at?.token;
+    if (!token) return null;
+
+    const res = await fetch("https://meet.googleapis.com/v2/spaces", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        config: {
+          artifactConfig: {
+            recordingConfig: { autoRecordingGeneration: "ON" },
+          },
+        },
+      }),
+    });
+
+    if (!res.ok) {
+      const txt = await res.text();
+      console.error(
+        "Não foi possível criar sala Meet com gravação:",
+        res.status,
+        txt
+      );
+      return null;
+    }
+
+    const space = await res.json();
+    if (space?.meetingUri && space?.meetingCode) {
+      return { uri: space.meetingUri, code: space.meetingCode };
+    }
+    return null;
+  } catch (e) {
+    console.error("Erro ao criar sala Meet com gravação:", e);
+    return null;
+  }
 }
 
 /**
@@ -114,6 +170,32 @@ export async function criarEvento(
     ""
   );
 
+  // Se a gravação automática estiver ligada, cria uma sala do Meet já
+  // configurada para gravar e anexa ao evento. Se não der, cai no Meet normal.
+  let conferenceData: calendar_v3.Schema$ConferenceData;
+  let meetLinkPre: string | undefined;
+  const sala = env.gravarReunioes() ? await criarSalaMeetComGravacao() : null;
+  if (sala) {
+    conferenceData = {
+      conferenceId: sala.code,
+      conferenceSolution: {
+        key: { type: "hangoutsMeet" },
+        name: "Google Meet",
+      },
+      entryPoints: [
+        { entryPointType: "video", uri: sala.uri, label: sala.uri },
+      ],
+    };
+    meetLinkPre = sala.uri;
+  } else {
+    conferenceData = {
+      createRequest: {
+        requestId,
+        conferenceSolutionKey: { type: "hangoutsMeet" },
+      },
+    };
+  }
+
   const res = await calendar.events.insert({
     calendarId: env.centralCalendarId(),
     conferenceDataVersion: 1,
@@ -132,12 +214,7 @@ export async function criarEvento(
           cupulaMentee: params.menteeEmail.toLowerCase(),
         },
       },
-      conferenceData: {
-        createRequest: {
-          requestId,
-          conferenceSolutionKey: { type: "hangoutsMeet" },
-        },
-      },
+      conferenceData,
       reminders: {
         useDefault: false,
         overrides: [
@@ -153,6 +230,7 @@ export async function criarEvento(
     data.hangoutLink ||
     data.conferenceData?.entryPoints?.find((e) => e.entryPointType === "video")
       ?.uri ||
+    meetLinkPre ||
     undefined;
 
   return {

@@ -24,7 +24,11 @@ import { existsSync, readFileSync } from "node:fs";
 
 const PORT = 5858;
 const REDIRECT = `http://localhost:${PORT}/oauth2callback`;
-const SCOPES = ["https://www.googleapis.com/auth/calendar"];
+const SCOPES = [
+  "https://www.googleapis.com/auth/calendar",
+  // Permite criar salas do Meet com gravação automática (conta central).
+  "https://www.googleapis.com/auth/meetings.space.created",
+];
 
 // Carrega variáveis do .env (leitura simples, sem dependências extras).
 function loadDotEnv() {
