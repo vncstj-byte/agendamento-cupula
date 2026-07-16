@@ -210,7 +210,7 @@ export default function AgendarPage() {
         </div>
         <div className="center">
           <button className="btn-ghost" onClick={irReagendar}>
-            Reagendar
+            Remarcar
           </button>
         </div>
       </main>
@@ -257,13 +257,13 @@ export default function AgendarPage() {
             </a>
           )}
           <p className="muted center" style={{ marginTop: 14 }}>
-            Precisa de outro horário? É só reagendar — o horário atual é
+            Precisa de outro horário? É só remarcar — o horário atual é
             cancelado automaticamente.
           </p>
         </div>
         <div className="center">
           <button className="btn-ghost" onClick={irReagendar}>
-            Reagendar
+            Remarcar
           </button>
         </div>
       </main>
@@ -281,7 +281,7 @@ export default function AgendarPage() {
             ← Voltar aos horários
           </button>
           <div className="step-label">
-            {reagendarMode ? "Reagendar" : "Confirmar"}
+            {reagendarMode ? "Remarcar" : "Confirmar"}
           </div>
           <h2>Revise e confirme</h2>
           {reagendarMode && (
@@ -325,7 +325,7 @@ export default function AgendarPage() {
               {enviando
                 ? "Confirmando…"
                 : reagendarMode
-                ? "Confirmar reagendamento"
+                ? "Confirmar remarcação"
                 : "Confirmar agendamento"}
             </button>
           </div>
@@ -383,11 +383,11 @@ export default function AgendarPage() {
       <div className="card">
         {reagendarMode && jaAgendado && (
           <button className="back" onClick={() => setReagendarMode(false)}>
-            ← Cancelar reagendamento
+            ← Cancelar remarcação
           </button>
         )}
         <div className="step-label">
-          {reagendarMode ? "Reagendar · Passo 1 de 2" : "Passo 1 de 2"}
+          {reagendarMode ? "Remarcar · Passo 1 de 2" : "Passo 1 de 2"}
         </div>
         <h2>Escolha o dia</h2>
         <p className="hint">Estes são os próximos dias com atendimento.</p>
