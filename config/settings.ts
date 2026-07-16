@@ -50,7 +50,7 @@ export const defaultSettings: Settings = {
 
   sessionMinutes: 30,
   bufferMinutes: 0,
-  minNoticeHours: 24,
+  minNoticeHours: 3,
   horizonDays: 30,
 
   janelas: {
