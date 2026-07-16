@@ -28,6 +28,14 @@ export interface Settings {
   /** Antecedência mínima, em horas, para marcar. */
   minNoticeHours: number;
 
+  /**
+   * Prazo MÁXIMO, em horas, para o onboarding acontecer.
+   * Ex.: 48 = só mostra horários dentro das próximas 48 horas.
+   * Use 0 para não ter limite máximo.
+   * (Regra interna — não é exibida ao mentorado.)
+   */
+  maxNoticeHours: number;
+
   /** Até quantos dias à frente o mentorado pode marcar. */
   horizonDays: number;
 
@@ -51,6 +59,7 @@ export const defaultSettings: Settings = {
   sessionMinutes: 30,
   bufferMinutes: 0,
   minNoticeHours: 3,
+  maxNoticeHours: 48,
   horizonDays: 30,
 
   janelas: {

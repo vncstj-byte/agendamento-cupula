@@ -28,6 +28,7 @@ function normalizar(parcial: unknown): Settings {
     sessionMinutes: clampInt(p.sessionMinutes, 5, 480, base.sessionMinutes),
     bufferMinutes: clampInt(p.bufferMinutes, 0, 240, base.bufferMinutes),
     minNoticeHours: clampInt(p.minNoticeHours, 0, 720, base.minNoticeHours),
+    maxNoticeHours: clampInt(p.maxNoticeHours, 0, 8760, base.maxNoticeHours),
     horizonDays: clampInt(p.horizonDays, 1, 365, base.horizonDays),
     janelas: normalizarJanelas(p.janelas) ?? base.janelas,
   };

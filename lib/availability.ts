@@ -24,10 +24,17 @@ export async function horariosDisponiveis(dataISO: string): Promise<Slot[]> {
 
   const agora = DateTime.now().setZone(tz);
   const limiteAntecedencia = agora.plus({ hours: s.minNoticeHours });
+  const limiteMaximo =
+    s.maxNoticeHours && s.maxNoticeHours > 0
+      ? agora.plus({ hours: s.maxNoticeHours })
+      : null;
 
-  const candidatos = slotsCandidatos(dia, s).filter(
-    (slot) => DateTime.fromISO(slot.inicioISO) >= limiteAntecedencia
-  );
+  const candidatos = slotsCandidatos(dia, s).filter((slot) => {
+    const inicio = DateTime.fromISO(slot.inicioISO);
+    if (inicio < limiteAntecedencia) return false;
+    if (limiteMaximo && inicio > limiteMaximo) return false;
+    return true;
+  });
   if (candidatos.length === 0) return [];
 
   const ocupados = await getBusyPeriods(

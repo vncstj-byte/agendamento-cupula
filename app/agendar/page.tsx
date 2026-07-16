@@ -308,9 +308,12 @@ export default function AgendarPage() {
 function Brand() {
   return (
     <div className="brand">
-      <div className="eyebrow">Programa de Mentoria</div>
-      <h1>A Cúpula</h1>
-      <p>Agendamento com a concierge</p>
+      <div className="eyebrow">Programa de mentoria para advogados</div>
+      <h1>Cúpula</h1>
+      <p>
+        É um prazer te ter na Cúpula. Agende seu onboarding com nossa
+        concierge!
+      </p>
     </div>
   );
 }
