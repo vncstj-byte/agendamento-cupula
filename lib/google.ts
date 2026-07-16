@@ -46,6 +46,7 @@ async function criarSalaMeetComGravacao(): Promise<{
           accessType: "OPEN",
           artifactConfig: {
             recordingConfig: { autoRecordingGeneration: "ON" },
+            transcriptionConfig: { autoTranscriptionGeneration: "ON" },
           },
         },
       }),
