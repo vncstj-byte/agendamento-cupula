@@ -98,11 +98,15 @@ async function main() {
     process.exit(1);
   }
 
-  console.log("\n✅ Pronto! Cole a linha abaixo no seu arquivo .env:\n");
-  console.log(`CONCIERGE_REFRESH_TOKEN=${tokens.refresh_token}\n`);
+  console.log("\n✅ Pronto! Seu refresh token é:\n");
+  console.log(`${tokens.refresh_token}\n`);
   console.log(
-    "Dica: em CONCIERGE_CALENDAR_ID use o e-mail da concierge " +
-      "(ou deixe 'primary' para a agenda principal dela).\n"
+    "Cole no .env (ou na Vercel) na variável certa, conforme a conta que\n" +
+      "você acabou de logar:\n" +
+      "  • Conta da CONCIERGE  → CONCIERGE_REFRESH_TOKEN\n" +
+      "     (agenda de disponibilidade — de onde lemos os horários ocupados)\n" +
+      "  • Conta CENTRAL/cupulared → CENTRAL_REFRESH_TOKEN\n" +
+      "     (conta que cria e grava a reunião)\n"
   );
 }
 

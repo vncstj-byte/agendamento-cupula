@@ -2,23 +2,31 @@ import { google, calendar_v3 } from "googleapis";
 import { env } from "@/lib/env";
 
 /**
- * Cliente do Google Calendar autenticado como a conta DONA da agenda
- * da concierge (via refresh token guardado no .env).
- *
- * É com este cliente que lemos os horários ocupados e criamos os
- * eventos das mentorias — sempre na agenda da concierge.
+ * Cria um cliente do Google Calendar autenticado com um refresh token.
  */
-function oauthClient() {
+function clientFor(refreshToken: string): calendar_v3.Calendar {
   const client = new google.auth.OAuth2(
     env.googleClientId(),
     env.googleClientSecret()
   );
-  client.setCredentials({ refresh_token: env.calendarRefreshToken() });
-  return client;
+  client.setCredentials({ refresh_token: refreshToken });
+  return google.calendar({ version: "v3", auth: client });
 }
 
+/**
+ * Agenda da CONCIERGE — usada para LER os horários ocupados
+ * (disponibilidade) e para guardar as configurações do painel.
+ */
 export function calendarClient(): calendar_v3.Calendar {
-  return google.calendar({ version: "v3", auth: oauthClient() });
+  return clientFor(env.calendarRefreshToken());
+}
+
+/**
+ * Agenda CENTRAL — onde os eventos são CRIADOS (organizadora, grava
+ * as reuniões). Cai na agenda da concierge se não estiver configurada.
+ */
+function centralClient(): calendar_v3.Calendar {
+  return clientFor(env.centralRefreshToken());
 }
 
 export interface BusyPeriod {
@@ -80,11 +88,16 @@ export interface EventoCriado {
 export async function criarEvento(
   params: CriarEventoParams
 ): Promise<EventoCriado> {
-  const calendar = calendarClient();
+  const calendar = centralClient();
 
   const attendees: calendar_v3.Schema$EventAttendee[] = [
     { email: params.menteeEmail, displayName: params.menteeNome },
   ];
+  // Concierge entra como convidada (co-participante), não como dona.
+  const conciergeEmail = env.conciergeEmail();
+  if (env.centralConfigured() && conciergeEmail) {
+    attendees.push({ email: conciergeEmail });
+  }
   if (params.socioEmail) {
     attendees.push({
       email: params.socioEmail,
@@ -102,7 +115,7 @@ export async function criarEvento(
   );
 
   const res = await calendar.events.insert({
-    calendarId: env.calendarId(),
+    calendarId: env.centralCalendarId(),
     conferenceDataVersion: 1,
     sendUpdates: "all",
     requestBody: {
@@ -165,9 +178,9 @@ export async function buscarOnboardingDoMentee(
   email: string,
   aPartirDeISO: string
 ): Promise<OnboardingExistente | null> {
-  const calendar = calendarClient();
+  const calendar = centralClient();
   const res = await calendar.events.list({
-    calendarId: env.calendarId(),
+    calendarId: env.centralCalendarId(),
     privateExtendedProperty: [
       "cupulaOnboarding=1",
       `cupulaMentee=${email.toLowerCase()}`,
@@ -189,9 +202,9 @@ export async function buscarOnboardingDoMentee(
 
 /** Cancela (apaga) um evento e avisa os participantes. */
 export async function cancelarEvento(eventId: string): Promise<void> {
-  const calendar = calendarClient();
+  const calendar = centralClient();
   await calendar.events.delete({
-    calendarId: env.calendarId(),
+    calendarId: env.centralCalendarId(),
     eventId,
     sendUpdates: "all",
   });
