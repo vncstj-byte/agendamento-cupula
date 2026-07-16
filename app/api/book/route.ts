@@ -5,7 +5,11 @@ import { env } from "@/lib/env";
 import { PROGRAMA } from "@/config/settings";
 import { getSettings } from "@/lib/settingsStore";
 import { slotAindaDisponivel } from "@/lib/availability";
-import { criarEvento } from "@/lib/google";
+import {
+  criarEvento,
+  buscarOnboardingDoMentee,
+  cancelarEvento,
+} from "@/lib/google";
 
 export const dynamic = "force-dynamic";
 
@@ -32,7 +36,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let body: { start?: string; observacao?: string };
+  let body: { start?: string; observacao?: string; reagendar?: boolean };
   try {
     body = await req.json();
   } catch {
@@ -48,6 +52,22 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const settings = await getSettings();
+    const agora = DateTime.now().setZone(settings.timezone);
+
+    // Verifica se o mentorado já tem um onboarding futuro.
+    const existente = await buscarOnboardingDoMentee(email, agora.toISO()!);
+    if (existente && !body.reagendar) {
+      return NextResponse.json(
+        {
+          error:
+            "Você já tem um onboarding agendado. Use a opção Reagendar para trocar o horário.",
+          jaAgendado: true,
+        },
+        { status: 409 }
+      );
+    }
+
     // Reconfere que o horário continua livre (evita marcação duplicada).
     const slot = await slotAindaDisponivel(start);
     if (!slot) {
@@ -60,7 +80,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const settings = await getSettings();
     const inicio = DateTime.fromISO(slot.inicioISO).setZone(settings.timezone);
     const dataLegivel = inicio
       .setLocale("pt-BR")
@@ -84,6 +103,15 @@ export async function POST(req: NextRequest) {
       titulo: `${nome} | Onboarding Cúpula`,
       descricao,
     });
+
+    // Reagendamento: depois de criar o novo, cancela o horário anterior.
+    if (existente && body.reagendar) {
+      try {
+        await cancelarEvento(existente.id);
+      } catch (e) {
+        console.error("Novo evento criado, mas falha ao cancelar o antigo:", e);
+      }
+    }
 
     return NextResponse.json({
       ok: true,
