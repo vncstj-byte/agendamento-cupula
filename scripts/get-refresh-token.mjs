@@ -28,6 +28,9 @@ const SCOPES = [
   "https://www.googleapis.com/auth/calendar",
   // Permite criar salas do Meet com gravação automática (conta central).
   "https://www.googleapis.com/auth/meetings.space.created",
+  // Permite EDITAR as configurações das salas (marcar gravação/transcrição/
+  // Gemini na sala nativa do evento).
+  "https://www.googleapis.com/auth/meetings.space.settings",
 ];
 
 // Carrega variáveis do .env (leitura simples, sem dependências extras).
