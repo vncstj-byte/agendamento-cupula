@@ -19,82 +19,6 @@ function clientFor(refreshToken: string): calendar_v3.Calendar {
 }
 
 /**
- * Cria uma sala do Google Meet JÁ com as opções ativadas: gravação +
- * transcrição + notas do Gemini automáticas, entrada livre e gerenciamento
- * de organizadores. Retorna o link e o código da sala, ou null se não der
- * (aí o evento usa um Meet normal).
- *
- * Obs.: a gravação em si só começa quando uma conta AUTORIZADA (da
- * organização, ex.: @cupulared) entra na reunião — é regra do Google.
- */
-async function criarSalaMeetComGravacao(): Promise<{
-  uri: string;
-  code: string;
-} | null> {
-  try {
-    const auth = oauth2For(env.centralRefreshToken());
-    const at = await auth.getAccessToken();
-    const token = typeof at === "string" ? at : at?.token;
-    if (!token) return null;
-
-    // Entrada livre + gerenciamento de organizadores em todas as tentativas.
-    const base = { accessType: "OPEN" as const, moderation: "ON" as const };
-
-    // Do mais completo ao mais simples: se o Workspace não suportar algum
-    // recurso, cai para a próxima opção em vez de falhar.
-    const tentativas: Record<string, unknown>[] = [
-      {
-        ...base,
-        artifactConfig: {
-          recordingConfig: { autoRecordingGeneration: "ON" },
-          transcriptionConfig: { autoTranscriptionGeneration: "ON" },
-          smartNotesConfig: { autoSmartNotesGeneration: "ON" },
-        },
-      },
-      {
-        ...base,
-        artifactConfig: {
-          recordingConfig: { autoRecordingGeneration: "ON" },
-          transcriptionConfig: { autoTranscriptionGeneration: "ON" },
-        },
-      },
-      { ...base, artifactConfig: { recordingConfig: { autoRecordingGeneration: "ON" } } },
-    ];
-
-    for (const config of tentativas) {
-      const res = await fetch("https://meet.googleapis.com/v2/spaces", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ config }),
-      });
-
-      if (res.ok) {
-        const space = await res.json();
-        if (space?.meetingUri && space?.meetingCode) {
-          return { uri: space.meetingUri, code: space.meetingCode };
-        }
-        return null;
-      }
-
-      console.error(
-        "Tentativa de criar sala Meet com gravação falhou:",
-        res.status,
-        JSON.stringify(config.artifactConfig),
-        await res.text()
-      );
-    }
-
-    return null;
-  } catch (e) {
-    console.error("Erro ao criar sala Meet com gravação:", e);
-    return null;
-  }
-}
-
-/**
  * Agenda da CONCIERGE — usada para LER os horários ocupados
  * (disponibilidade) e para guardar as configurações do painel.
  */
@@ -195,27 +119,15 @@ export async function criarEvento(
     ""
   );
 
-  // Se a gravação estiver ligada, cria uma sala do Meet JÁ com gravação +
-  // transcrição + Gemini ativados e anexa ao evento. Se não der, usa um
-  // Meet normal (createRequest) para o evento não ficar sem link.
-  let conferenceData: calendar_v3.Schema$ConferenceData;
-  let meetLinkPre: string | undefined;
-  const sala = env.gravarReunioes() ? await criarSalaMeetComGravacao() : null;
-  if (sala) {
-    conferenceData = {
-      conferenceId: sala.code,
-      conferenceSolution: { key: { type: "hangoutsMeet" }, name: "Google Meet" },
-      entryPoints: [{ entryPointType: "video", uri: sala.uri, label: sala.uri }],
-    };
-    meetLinkPre = sala.uri;
-  } else {
-    conferenceData = {
-      createRequest: {
-        requestId,
-        conferenceSolutionKey: { type: "hangoutsMeet" },
-      },
-    };
-  }
+  // Meet NATIVO do evento → o evento fica EDITÁVEL (dá para abrir as
+  // "Opções da videochamada", marcar gravação/transcrição/Gemini e
+  // coorganizador na mão). O Google não permite pré-marcar isso por API.
+  const conferenceData: calendar_v3.Schema$ConferenceData = {
+    createRequest: {
+      requestId,
+      conferenceSolutionKey: { type: "hangoutsMeet" },
+    },
+  };
 
   const res = await calendar.events.insert({
     calendarId: env.centralCalendarId(),
@@ -251,7 +163,6 @@ export async function criarEvento(
     data.hangoutLink ||
     data.conferenceData?.entryPoints?.find((e) => e.entryPointType === "video")
       ?.uri ||
-    meetLinkPre ||
     undefined;
 
   return {
