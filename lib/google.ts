@@ -33,8 +33,9 @@ async function criarSalaMeetComGravacao(): Promise<{
     const token = typeof at === "string" ? at : at?.token;
     if (!token) return null;
 
-    // Entrada livre (sem sala de espera) em todas as tentativas.
-    const base = { accessType: "OPEN" as const };
+    // Entrada livre (sem sala de espera) + gerenciamento de organizadores
+    // ligado, em todas as tentativas.
+    const base = { accessType: "OPEN" as const, moderation: "ON" as const };
 
     // Tenta do recurso mais completo ao mais simples. Se o Workspace não
     // suportar gravação/transcrição/notas do Gemini, cai para a próxima
