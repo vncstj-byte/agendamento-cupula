@@ -77,10 +77,6 @@ async function criarSalaMeetComGravacao(): Promise<{
       if (res.ok) {
         const space = await res.json();
         if (space?.meetingUri && space?.meetingCode) {
-          // Deixa a concierge como CO-ORGANIZADORA da sala — assim ela
-          // pode gravar (e a gravação automática dispara) mesmo entrando
-          // com o gmail, sem precisar de ninguém a mais na reunião.
-          await adicionarCoOrganizador(token, space.name);
           return { uri: space.meetingUri, code: space.meetingCode };
         }
         return null;
@@ -100,38 +96,6 @@ async function criarSalaMeetComGravacao(): Promise<{
   } catch (e) {
     console.error("Erro ao criar sala Meet com gravação:", e);
     return null;
-  }
-}
-
-/**
- * Adiciona a concierge como CO-ORGANIZADORA (co-host) da sala do Meet.
- * Best-effort: se a API não permitir, apenas registra e segue — o evento
- * continua sendo criado normalmente.
- */
-async function adicionarCoOrganizador(
-  token: string,
-  spaceName: string | undefined
-): Promise<void> {
-  const email = env.conciergeEmail();
-  if (!email || !spaceName) return;
-  try {
-    const res = await fetch(`https://meet.googleapis.com/v2/${spaceName}/members`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ email, role: "COHOST" }),
-    });
-    if (!res.ok) {
-      console.error(
-        "Não foi possível definir a concierge como co-organizadora:",
-        res.status,
-        await res.text()
-      );
-    }
-  } catch (e) {
-    console.error("Erro ao definir co-organizadora:", e);
   }
 }
 
