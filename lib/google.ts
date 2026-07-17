@@ -239,9 +239,22 @@ export async function criarEvento(
 
   // Liga gravação + transcrição + notas do Gemini automáticas na sala
   // nativa recém-criada (via Meet API). Best-effort.
-  const meetingCode = data.conferenceData?.conferenceId;
-  if (env.gravarReunioes() && meetingCode) {
-    await habilitarGravacaoAutomatica(meetingCode);
+  if (env.gravarReunioes()) {
+    // O código da reunião pode vir no conferenceId ou ser extraído do link
+    // do Meet (mais confiável, pois o conferenceId às vezes vem vazio).
+    let meetingCode = data.conferenceData?.conferenceId || undefined;
+    if (!meetingCode && meetLink) {
+      const m = meetLink.match(/meet\.google\.com\/([a-z0-9-]+)/i);
+      if (m) meetingCode = m[1];
+    }
+    if (meetingCode) {
+      await habilitarGravacaoAutomatica(meetingCode);
+    } else {
+      console.error(
+        "Sem código de reunião para ligar gravação. conferenceData:",
+        JSON.stringify(data.conferenceData)
+      );
+    }
   }
 
   return {
