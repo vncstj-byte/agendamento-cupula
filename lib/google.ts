@@ -33,39 +33,65 @@ async function criarSalaMeetComGravacao(): Promise<{
     const token = typeof at === "string" ? at : at?.token;
     if (!token) return null;
 
-    const res = await fetch("https://meet.googleapis.com/v2/spaces", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        config: {
-          // Entrada livre: qualquer pessoa com o link entra direto,
-          // sem precisar ser aceita por um organizador (sem sala de espera).
-          accessType: "OPEN",
-          artifactConfig: {
-            recordingConfig: { autoRecordingGeneration: "ON" },
-            transcriptionConfig: { autoTranscriptionGeneration: "ON" },
-          },
-        },
-      }),
-    });
+    // Entrada livre (sem sala de espera) em todas as tentativas.
+    const base = { accessType: "OPEN" as const };
 
-    if (!res.ok) {
+    // Tenta do recurso mais completo ao mais simples. Se o Workspace não
+    // suportar gravação/transcrição/notas do Gemini, cai para a próxima
+    // opção em vez de falhar — a gravação nunca é perdida por causa de um
+    // recurso extra indisponível.
+    const tentativas: Record<string, unknown>[] = [
+      {
+        ...base,
+        artifactConfig: {
+          recordingConfig: { autoRecordingGeneration: "ON" },
+          transcriptionConfig: { autoTranscriptionGeneration: "ON" },
+          smartNotesConfig: { autoSmartNotesGeneration: "ON" },
+        },
+      },
+      {
+        ...base,
+        artifactConfig: {
+          recordingConfig: { autoRecordingGeneration: "ON" },
+          transcriptionConfig: { autoTranscriptionGeneration: "ON" },
+        },
+      },
+      {
+        ...base,
+        artifactConfig: {
+          recordingConfig: { autoRecordingGeneration: "ON" },
+        },
+      },
+    ];
+
+    for (const config of tentativas) {
+      const res = await fetch("https://meet.googleapis.com/v2/spaces", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ config }),
+      });
+
+      if (res.ok) {
+        const space = await res.json();
+        if (space?.meetingUri && space?.meetingCode) {
+          return { uri: space.meetingUri, code: space.meetingCode };
+        }
+        return null;
+      }
+
       const txt = await res.text();
       console.error(
-        "Não foi possível criar sala Meet com gravação:",
+        "Tentativa de criar sala Meet falhou:",
         res.status,
+        JSON.stringify(config.artifactConfig),
         txt
       );
-      return null;
+      // Segue para a próxima tentativa (com menos recursos).
     }
 
-    const space = await res.json();
-    if (space?.meetingUri && space?.meetingCode) {
-      return { uri: space.meetingUri, code: space.meetingCode };
-    }
     return null;
   } catch (e) {
     console.error("Erro ao criar sala Meet com gravação:", e);
